@@ -12,7 +12,7 @@
         <div v-if="isLoading">Loading...</div>
 
         <ul v-else>
-            <li v-for="starship in filteredStarships" :key="starship.id">
+            <li v-for="starship in starships" :key="starship.id">
                 <router-link :to="{name: 'StarshipsItemPage', params: {id: starship.id}}">{{ starship.name }}</router-link>
             </li>
         </ul>
@@ -20,7 +20,8 @@
 </template>
 <script>
 import axios from 'axios';
-import {apiEndPoint} from '@/config';
+import {throttle} from 'lodash';
+import {apiEndPoint, apiRequestDelay} from '@/config';
 
 export default {
     name: 'StarshipsListPage',
@@ -38,14 +39,18 @@ export default {
     },
     computed: {
         currentApiEndPoint() {
-            return apiEndPoint + (this.page > 1 ? '?page=' + this.page : '');
+            let url = apiEndPoint + '?';
+
+            if (this.page > 1) {
+                url += 'page=' + this.page + '&';
+            }
+
+            if (this.search) {
+                url += 'search=' + this.search;
+            }
+
+            return url;
         },
-
-        filteredStarships() {
-            const regex = new RegExp(this.search, 'i');
-
-            return this.starships.filter(starship => regex.test(starship.name));
-        }
     },
     methods: {
         async fetchStarships() {
@@ -85,9 +90,10 @@ export default {
 
             this.page++;
             this.fetchStarships();
-        }
+        },
     },
     created() {
+        this.fetchStarships = throttle(this.fetchStarships, apiRequestDelay);
         this.fetchStarships();
     },
 
@@ -96,6 +102,7 @@ export default {
             const query = this.search ? {search: this.search} : null;
 
             this.$router.replace({query});
+            this.fetchStarships();
         }
     }
 };
